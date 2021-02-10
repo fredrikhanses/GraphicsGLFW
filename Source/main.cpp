@@ -6,6 +6,59 @@
 #include <GLFW/glfw3.h>
 #include <GL/GL.h>
 
+GLuint createShader(const char* source, GLenum type)
+{
+	GLuint shader = glCreateShader(type);
+	glShaderSource(shader, 1, &source, NULL);
+	glCompileShader(shader);
+
+	static char LOG_BUFFER[1024];
+	glGetShaderInfoLog(shader, 1024, NULL, LOG_BUFFER);
+	if (type == 35633)
+	{
+		printf("-- VERTEX SHADER COMPILE --\n");
+	}
+	else if(type == 35632)
+	{
+		printf("-- FRAGMENT SHADER COMPILE --\n");
+	}
+	printf("Source: \n%s", source);
+	printf(LOG_BUFFER);
+
+	return shader;
+}
+
+GLuint createShaderProgram(const char* vertexSource, const char* fragmentSource)
+{
+	GLuint vertex_shader = createShader(vertexSource, GL_VERTEX_SHADER);
+	GLuint fragment_shader = createShader(fragmentSource, GL_FRAGMENT_SHADER);
+
+	GLuint program = glCreateProgram();
+	glAttachShader(program, vertex_shader);
+	glAttachShader(program, fragment_shader);
+	glLinkProgram(program);
+
+	return program;
+}
+
+GLuint createVertexArrayBuffer(float* vertexData, int dataSize)
+{
+	//Vertex Buffer Object
+	GLuint vertexBufferObject;
+	glGenBuffers(1, &vertexBufferObject);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject);
+	glBufferData(GL_ARRAY_BUFFER, dataSize, vertexData, GL_STATIC_DRAW);
+
+	//Vertex Array Object
+	GLuint vertexArrayObject;
+	glGenVertexArrays(1, &vertexArrayObject);
+	glBindVertexArray(vertexArrayObject);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0);
+
+	return vertexArrayObject;
+}
+
 void handleKeyEvent(GLFWwindow* window, int key, int scancode, int action, int modifiers)
 {
 	int unitsToMove = 10;
@@ -28,31 +81,31 @@ void handleKeyEvent(GLFWwindow* window, int key, int scancode, int action, int m
 		}
 		if (key == GLFW_KEY_LEFT)
 		{
-			int xPos;
-			int yPos;
-			glfwGetWindowPos(window, &xPos, &yPos);
-			glfwSetWindowPos(window, xPos - unitsToMove, yPos);
+			int xPosition;
+			int yPosition;
+			glfwGetWindowPos(window, &xPosition, &yPosition);
+			glfwSetWindowPos(window, xPosition - unitsToMove, yPosition);
 		}
 		if (key == GLFW_KEY_RIGHT)
 		{
-			int xPos;
-			int yPos;
-			glfwGetWindowPos(window, &xPos, &yPos);
-			glfwSetWindowPos(window, xPos + unitsToMove, yPos);
+			int xPosition;
+			int yPosition;
+			glfwGetWindowPos(window, &xPosition, &yPosition);
+			glfwSetWindowPos(window, xPosition + unitsToMove, yPosition);
 		}
 		if (key == GLFW_KEY_UP)
 		{
-			int xPos;
-			int yPos;
-			glfwGetWindowPos(window, &xPos, &yPos);
-			glfwSetWindowPos(window, xPos, yPos - unitsToMove);
+			int xPosition;
+			int yPosition;
+			glfwGetWindowPos(window, &xPosition, &yPosition);
+			glfwSetWindowPos(window, xPosition, yPosition - unitsToMove);
 		}
 		if (key == GLFW_KEY_DOWN)
 		{
-			int xPos;
-			int yPos;
-			glfwGetWindowPos(window, &xPos, &yPos);
-			glfwSetWindowPos(window, xPos, yPos + unitsToMove);
+			int xPosition;
+			int yPosition;
+			glfwGetWindowPos(window, &xPosition, &yPosition);
+			glfwSetWindowPos(window, xPosition, yPosition + unitsToMove);
 		}
 	}
 }
@@ -75,65 +128,46 @@ int main ()
 {
 	//Read shaders from file
 	TextReader textReader;
-	std::string vertex_shader_source = textReader.ReadText("Shaders/VertexShader.txt");
-	char* vertex_shader_source_char = &vertex_shader_source[0];
-	std::string fragment_shader_source = textReader.ReadText("Shaders/FragmentShader.txt");
-	char* fragment_shader_source_char = &fragment_shader_source[0];
+	std::string vertexShaderSource = textReader.ReadText("Shaders/VertexShader.txt");
+	char* vertexShaderSourceChar = &vertexShaderSource[0];
+	std::string fragmentShaderSource = textReader.ReadText("Shaders/FragmentShader.txt");
+	char* fragmentShaderSourceChar = &fragmentShaderSource[0];
+	std::string fragmentShaderSourceB = textReader.ReadText("Shaders/FragmentShaderB.txt");
+	char* fragmentShaderSourceCharB = &fragmentShaderSourceB[0];
 
 	glfwInit();
 	GLFWwindow* window = glfwCreateWindow(800, 600, "GraphicsGLFW", NULL, NULL);
 	glfwMakeContextCurrent(window);
+
 	glewInit();
+
 	glfwSetKeyCallback(window, handleKeyEvent);
 	glfwSetMouseButtonCallback(window, handleMouseEvent);
 
-	//Vertex Buffer Object
-	GLuint vbo;
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	float vertexData[] = { 0.0f, 0.5f, -0.5f, -0.5f, 0.5f, -0.5f };
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertexData), vertexData, GL_STATIC_DRAW);
+	//Program A
+	float vertexDataA[] = { 0.0f, 0.5f, -0.5f, -0.5f, 0.5f, -0.5f };
+	GLuint triA = createVertexArrayBuffer(vertexDataA, sizeof(vertexDataA));
+	GLuint programA = createShaderProgram(vertexShaderSourceChar, fragmentShaderSourceChar);
 
-	//Vertex Array Object
-	GLuint vao;
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0);
-
-	//Vertex shader
-	GLuint vert_shader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vert_shader, 1, &vertex_shader_source_char, NULL);
-	glCompileShader(vert_shader);
-
-	static char LOG_BUFFER[1024];
-	glGetShaderInfoLog(vert_shader, 1024, NULL, LOG_BUFFER);
-	printf("-- VERTEX SHADER COMPILE --\n");
-	printf("Source: \n%s", vertex_shader_source_char);
-	printf(LOG_BUFFER);
-
-	//Fragment shader
-	GLuint frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(frag_shader, 1, &fragment_shader_source_char, NULL);
-	glCompileShader(frag_shader);
-
-	glGetShaderInfoLog(frag_shader, 1024, NULL, LOG_BUFFER);
-	printf("-- FRAGMENT SHADER COMPILE --\n");
-	printf("Source: \n%s", fragment_shader_source_char);
-	printf(LOG_BUFFER);
-
-	//Shader program
-	GLuint program = glCreateProgram();
-	glAttachShader(program, vert_shader);
-	glAttachShader(program, frag_shader);
-	glLinkProgram(program);
-	glUseProgram(program);
+	//Program B
+	float vertexDataB[] = { 0.4f, 1.0f, 0.7f, -0.3f, 0.9f, 0.5f };
+	GLuint triB = createVertexArrayBuffer(vertexDataB, sizeof(vertexDataB));
+	GLuint programB = createShaderProgram(vertexShaderSourceChar, fragmentShaderSourceCharB);
 
 	while (!glfwWindowShouldClose(window))
 	{
+		//Clear screen
 		glClearColor(1.0f, 0.5f, 0.25f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
+
+		glUseProgram(programA);
+		glBindVertexArray(triA);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
+
+		glUseProgram(programB);
+		glBindVertexArray(triB);
+		glDrawArrays(GL_TRIANGLES, 0, 3);
+
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}

@@ -1,6 +1,9 @@
 #version 330 core
+uniform float u_Time;
+uniform float u_Scale = 1.0f;
+uniform vec2 u_Offset;
 in vec2 a_Position;
 void main()
 {
-    gl_Position = vec4(a_Position.x, a_Position.y, 0.0, 1.0);
+    gl_Position = vec4((a_Position.x + u_Offset.x) * u_Scale, (a_Position.y + u_Offset.y) * u_Scale, 0.0, 1.0);
 }

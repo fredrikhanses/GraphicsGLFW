@@ -24,5 +24,6 @@ std::string TextReader::ReadText(std::string Path)
 			OutData += "\n";
 		}
 	}
+	InData.close();
 	return OutData;
 }

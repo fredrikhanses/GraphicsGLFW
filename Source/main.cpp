@@ -6,6 +6,12 @@
 #include <GLFW/glfw3.h>
 #include <GL/GL.h>
 
+int resolutionX = 1000;
+int resolutionY = 1000;
+int moveRight = 0;
+int moveUp = 0;
+float scaleMultiplier = 1.0f;
+
 GLuint createShader(const char* source, GLenum type)
 {
 	GLuint shader = glCreateShader(type);
@@ -90,26 +96,46 @@ void handleKeyEvent(GLFWwindow* window, int key, int scancode, int action, int m
 		}
 		if (key == GLFW_KEY_LEFT)
 		{
+			moveRight--;
+		}
+		if (key == GLFW_KEY_RIGHT)
+		{
+			moveRight++;
+		}
+		if (key == GLFW_KEY_UP)
+		{
+			scaleMultiplier += 0.1f;
+		}
+		if (key == GLFW_KEY_DOWN)
+		{
+			scaleMultiplier -= 0.1f;
+			if (scaleMultiplier <= 0.0f)
+			{
+				scaleMultiplier = 0.1f;
+			}
+		}
+		if (modifiers == GLFW_MOD_SHIFT && key == GLFW_KEY_LEFT)
+		{
 			int xPosition;
 			int yPosition;
 			glfwGetWindowPos(window, &xPosition, &yPosition);
 			glfwSetWindowPos(window, xPosition - unitsToMove, yPosition);
 		}
-		if (key == GLFW_KEY_RIGHT)
+		if (modifiers == GLFW_MOD_SHIFT && key == GLFW_KEY_RIGHT)
 		{
 			int xPosition;
 			int yPosition;
 			glfwGetWindowPos(window, &xPosition, &yPosition);
 			glfwSetWindowPos(window, xPosition + unitsToMove, yPosition);
 		}
-		if (key == GLFW_KEY_UP)
+		if (modifiers == GLFW_MOD_SHIFT && key == GLFW_KEY_UP)
 		{
 			int xPosition;
 			int yPosition;
 			glfwGetWindowPos(window, &xPosition, &yPosition);
 			glfwSetWindowPos(window, xPosition, yPosition - unitsToMove);
 		}
-		if (key == GLFW_KEY_DOWN)
+		if (modifiers == GLFW_MOD_SHIFT && key == GLFW_KEY_DOWN)
 		{
 			int xPosition;
 			int yPosition;
@@ -139,19 +165,11 @@ int main ()
 	TextReader textReader;
 	std::string vertexShaderSource = textReader.ReadText("Shaders/VertexShader.txt");
 	char* vertexShaderSourceChar = &vertexShaderSource[0];
-	std::string fragmentShaderSourceA = textReader.ReadText("Shaders/FragmentShaderA.txt");
-	char* fragmentShaderSourceCharA = &fragmentShaderSourceA[0];
-	std::string fragmentShaderSourceB = textReader.ReadText("Shaders/FragmentShaderB.txt");
-	char* fragmentShaderSourceCharB = &fragmentShaderSourceB[0];
-	std::string fragmentShaderSourceC = textReader.ReadText("Shaders/FragmentShaderC.txt");
-	char* fragmentShaderSourceCharC = &fragmentShaderSourceC[0];
-	std::string fragmentShaderSourceD = textReader.ReadText("Shaders/FragmentShaderD.txt");
-	char* fragmentShaderSourceCharD = &fragmentShaderSourceD[0];
-	std::string fragmentShaderSourceE = textReader.ReadText("Shaders/FragmentShaderE.txt");
-	char* fragmentShaderSourceCharE = &fragmentShaderSourceE[0];
+	std::string fragmentShaderSource = textReader.ReadText("Shaders/FragmentShader.txt");
+	char* fragmentShaderSourceChar = &fragmentShaderSource[0];
 
 	glfwInit();
-	GLFWwindow* window = glfwCreateWindow(800, 800, "GraphicsGLFW", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(resolutionX, resolutionY, "GraphicsGLFW", NULL, NULL);
 	glfwMakeContextCurrent(window);
 
 	glewInit();
@@ -159,17 +177,22 @@ int main ()
 	glfwSetKeyCallback(window, handleKeyEvent);
 	glfwSetMouseButtonCallback(window, handleMouseEvent);
 
+	GLuint program = createShaderProgram(vertexShaderSourceChar, fragmentShaderSourceChar);
+	GLuint uColor = glGetUniformLocation(program, "u_Color");
+	GLuint uTime = glGetUniformLocation(program, "u_Time");
+	GLuint uScale = glGetUniformLocation(program, "u_Scale");
+	GLuint uOffset = glGetUniformLocation(program, "u_Offset");
+
 	//Program A
 	float vertexDataA[] =
 	{ 
-		-0.9, 0.7, 
+		-0.9f, 0.7f, 
 		-0.9f, 0.9f, 
 		-0.1f, 0.9f, 
 		-0.1f, 0.7f 
 	};
 	GLuint elementDataA[] = { 0, 1, 2, 0, 2, 3 };
 	GLuint triA = createVertexArrayBuffer(vertexDataA, sizeof(vertexDataA), elementDataA, sizeof(elementDataA));
-	GLuint programA = createShaderProgram(vertexShaderSourceChar, fragmentShaderSourceCharA);
 
 	//Program B
 	float vertexDataB[] = 
@@ -181,7 +204,6 @@ int main ()
 	};
 	GLuint elementDataB[] = { 0, 1, 2, 0, 2, 3 };
 	GLuint triB = createVertexArrayBuffer(vertexDataB, sizeof(vertexDataB), elementDataB, sizeof(elementDataB));
-	GLuint programB = createShaderProgram(vertexShaderSourceChar, fragmentShaderSourceCharB);
 
 	//Program C
 	float vertexDataC[] =
@@ -196,7 +218,6 @@ int main ()
 	};
 	GLuint elementDataC[] = { 0, 1, 2, 0, 2, 3, 3, 4, 5, 3, 5, 6 };
 	GLuint triC = createVertexArrayBuffer(vertexDataC, sizeof(vertexDataC), elementDataC, sizeof(elementDataC));
-	GLuint programC = createShaderProgram(vertexShaderSourceChar, fragmentShaderSourceCharC);
 
 	//Program D
 	float vertexDataD[] =
@@ -212,7 +233,6 @@ int main ()
 	};
 	GLuint elementDataD[] = { 0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7 };
 	GLuint triD = createVertexArrayBuffer(vertexDataD, sizeof(vertexDataD), elementDataD, sizeof(elementDataD));
-	GLuint programD = createShaderProgram(vertexShaderSourceChar, fragmentShaderSourceCharD);
 
 	//Program E
 	float vertexDataE[] = 
@@ -228,32 +248,47 @@ int main ()
 	};
 	GLuint elementDataE[] = { 0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7 };
 	GLuint triE = createVertexArrayBuffer(vertexDataE, sizeof(vertexDataE), elementDataE, sizeof(elementDataE));
-	GLuint programE = createShaderProgram(vertexShaderSourceChar, fragmentShaderSourceCharE);
+	
+	glUseProgram(program);
 
+	float previousTime = 0;
+	
 	while (!glfwWindowShouldClose(window))
 	{
 		//Clear screen
-		glClearColor(0.25f, 0.25f, 0.25f, 1.0f);
+		glClearColor(0.125f, 0.125f, 0.125f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		glUseProgram(programA);
-		glBindVertexArray(triA);
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		float time = glfwGetTime();
+		float deltaTime = time - previousTime;
+		previousTime = time;
 
-		glUseProgram(programB);
-		glBindVertexArray(triB);
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		glUniform2f(uOffset, moveRight * 0.05f, moveUp * 0.05f);
+		glUniform1f(uScale, scaleMultiplier);
 
-		glUseProgram(programC);
-		glBindVertexArray(triC);
-		glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
+		//glBindVertexArray(triA);
+		//glUniform4f(uColor, 0.0f, 1.0f, 1.0f, 1.0f);
+		//glUniform1f(uTime, time);
+		//glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-		glUseProgram(programD);
-		glBindVertexArray(triD);
-		glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
+		//glBindVertexArray(triB);
+		//glUniform4f(uColor, 1.0f, 1.0f, 0.0f, 1.0f);
+		//glUniform1f(uTime, time);
+		//glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-		glUseProgram(programE);
+		//glBindVertexArray(triC);
+		//glUniform4f(uColor, 1.0f, 0.5f, 0.0f, 1.0f);
+		//glUniform1f(uTime, time);
+		//glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
+
+		//glBindVertexArray(triD);
+		//glUniform4f(uColor, 0.0f, 1.0f, 0.0f, 1.0f);
+		//glUniform1f(uTime, time);
+		//glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
+
 		glBindVertexArray(triE);
+		glUniform4f(uColor, 1.0f, 0.0f, 1.0f, 1.0f);
+		glUniform1f(uTime, time);
 		glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
 
 		glfwSwapBuffers(window);

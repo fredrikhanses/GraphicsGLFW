@@ -1,0 +1,10 @@
+#version 330 core
+uniform float u_Time;
+uniform vec4 u_Color;
+out vec4 o_Color;
+void main()
+{
+    vec4 color_a = vec4(1.0 - u_Color.x, 1.0 - u_Color.y, 1.0 - u_Color.z, 1.0);
+    vec4 color_b = u_Color;
+    o_Color = mix(color_a, color_b, sin(u_Time) * 0.5f + 0.5f);
+}

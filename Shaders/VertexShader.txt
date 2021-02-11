@@ -6,8 +6,7 @@ uniform vec2 u_Offset;
 in vec2 a_Position;
 void main()
 {
-    vec2 correction;
-    correction.x = (1.0f - u_Scale) * (u_MidPoint.x - a_Position.x);
-    correction.y = (1.0f - u_Scale) * (u_MidPoint.y - a_Position.y);
-    gl_Position = vec4(a_Position.x + u_Offset.x + correction.x, a_Position.y + u_Offset.y + correction.y, 0.0f, 1.0f);
+    vec2 correction = (1.0f - u_Scale) * (u_MidPoint - a_Position);
+    correction = a_Position + correction + u_Offset;
+    gl_Position = vec4(correction, 0.0f, 1.0f);
 }

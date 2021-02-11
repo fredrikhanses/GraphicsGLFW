@@ -94,19 +94,27 @@ void handleKeyEvent(GLFWwindow* window, int key, int scancode, int action, int m
 				glfwMaximizeWindow(window);
 			}
 		}
-		if (key == GLFW_KEY_LEFT)
+		if (modifiers != GLFW_MOD_ALT && key == GLFW_KEY_LEFT)
 		{
 			moveRight--;
 		}
-		if (key == GLFW_KEY_RIGHT)
+		if (modifiers != GLFW_MOD_ALT && key == GLFW_KEY_RIGHT)
 		{
 			moveRight++;
 		}
-		if (key == GLFW_KEY_UP)
+		if (modifiers == GLFW_MOD_SHIFT && key == GLFW_KEY_UP)
+		{
+			moveUp++;
+		}
+		if (modifiers == GLFW_MOD_SHIFT && key == GLFW_KEY_DOWN)
+		{
+			moveUp--;
+		}
+		if (modifiers != GLFW_MOD_SHIFT && modifiers != GLFW_MOD_ALT && key == GLFW_KEY_UP)
 		{
 			scaleMultiplier += 0.1f;
 		}
-		if (key == GLFW_KEY_DOWN)
+		if (modifiers != GLFW_MOD_SHIFT && modifiers != GLFW_MOD_ALT && key == GLFW_KEY_DOWN)
 		{
 			scaleMultiplier -= 0.1f;
 			if (scaleMultiplier <= 0.0f)
@@ -114,28 +122,28 @@ void handleKeyEvent(GLFWwindow* window, int key, int scancode, int action, int m
 				scaleMultiplier = 0.1f;
 			}
 		}
-		if (modifiers == GLFW_MOD_SHIFT && key == GLFW_KEY_LEFT)
+		if (modifiers == GLFW_MOD_ALT && key == GLFW_KEY_LEFT)
 		{
 			int xPosition;
 			int yPosition;
 			glfwGetWindowPos(window, &xPosition, &yPosition);
 			glfwSetWindowPos(window, xPosition - unitsToMove, yPosition);
 		}
-		if (modifiers == GLFW_MOD_SHIFT && key == GLFW_KEY_RIGHT)
+		if (modifiers == GLFW_MOD_ALT && key == GLFW_KEY_RIGHT)
 		{
 			int xPosition;
 			int yPosition;
 			glfwGetWindowPos(window, &xPosition, &yPosition);
 			glfwSetWindowPos(window, xPosition + unitsToMove, yPosition);
 		}
-		if (modifiers == GLFW_MOD_SHIFT && key == GLFW_KEY_UP)
+		if (modifiers == GLFW_MOD_ALT && key == GLFW_KEY_UP)
 		{
 			int xPosition;
 			int yPosition;
 			glfwGetWindowPos(window, &xPosition, &yPosition);
 			glfwSetWindowPos(window, xPosition, yPosition - unitsToMove);
 		}
-		if (modifiers == GLFW_MOD_SHIFT && key == GLFW_KEY_DOWN)
+		if (modifiers == GLFW_MOD_ALT && key == GLFW_KEY_DOWN)
 		{
 			int xPosition;
 			int yPosition;
@@ -151,11 +159,13 @@ void handleMouseEvent(GLFWwindow* window, int button, int action, int modifiers)
 	{
 		return;
 	}
-	if (action == GLFW_MOUSE_BUTTON_LEFT)
+	if (button == GLFW_MOUSE_BUTTON_LEFT)
 	{
 		double mouseX;
 		double mouseY;
 		glfwGetCursorPos(window, &mouseX, &mouseY);
+		printf("MousePosition: \n%f, %f\n", mouseX, mouseY);
+		printf("Point: \n%f,%f\n", (mouseX - resolutionX * 0.5f) / (resolutionX * 0.5f), (mouseY - resolutionY * 0.5f) / (-resolutionY * 0.5f));
 	}
 }
 
@@ -182,6 +192,7 @@ int main ()
 	GLuint uTime = glGetUniformLocation(program, "u_Time");
 	GLuint uScale = glGetUniformLocation(program, "u_Scale");
 	GLuint uOffset = glGetUniformLocation(program, "u_Offset");
+	GLuint uMidPoint = glGetUniformLocation(program, "u_MidPoint");
 
 	//Program A
 	float vertexDataA[] =
@@ -252,7 +263,7 @@ int main ()
 	glUseProgram(program);
 
 	float previousTime = 0;
-	
+
 	while (!glfwWindowShouldClose(window))
 	{
 		//Clear screen
@@ -263,6 +274,8 @@ int main ()
 		float deltaTime = time - previousTime;
 		previousTime = time;
 
+		glUniform2f(uMidPoint, -0.2f, 0.2f);
+		glUniform1f(uTime, deltaTime);
 		glUniform2f(uOffset, moveRight * 0.05f, moveUp * 0.05f);
 		glUniform1f(uScale, scaleMultiplier);
 

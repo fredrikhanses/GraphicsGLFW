@@ -1,10 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "TextReader.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 #define GLEW_STATIC
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <GL/GL.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 int resolutionX = 1000;
 int resolutionY = 1000;
@@ -47,29 +52,30 @@ GLuint createShaderProgram(const char* vertexSource, const char* fragmentSource)
 	return program;
 }
 
-GLuint createVertexArrayBuffer(float* vertexData, int vertexDataSize, GLuint* elementData = nullptr, int elemetDataSize = 0)
+GLuint createVertexArrayBuffer(float* vertexData, int vertexDataSize, GLuint* elementData, int elemetDataSize)
 {
+	//Vertex Array Object
+	GLuint vertexArrayObject;
+	glGenVertexArrays(1, &vertexArrayObject);
+	glBindVertexArray(vertexArrayObject);
+
 	//Vertex Buffer Object
 	GLuint vertexBufferObject;
 	glGenBuffers(1, &vertexBufferObject);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject);
 	glBufferData(GL_ARRAY_BUFFER, vertexDataSize, vertexData, GL_STATIC_DRAW);
-
-	//Vertex Array Object
-	GLuint vertexArrayObject;
-	glGenVertexArrays(1, &vertexArrayObject);
-	glBindVertexArray(vertexArrayObject);
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0);
+	glVertexAttribPointer(0, 2, GL_FLOAT, false, 7 * sizeof(float), 0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, false, 7 * sizeof(float), (void*)(2 * sizeof(float)));
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 2, GL_FLOAT, false, 7 * sizeof(float), (void*)(5 * sizeof(float)));
 
-	if (elementData != nullptr && elemetDataSize != 0)
-	{
-		//Element Buffer Object
-		GLuint elementBufferObject;
-		glGenBuffers(1, &elementBufferObject);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementBufferObject);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, elemetDataSize, elementData, GL_STATIC_DRAW);
-	}
+	//Element Buffer Object
+	GLuint elementBufferObject;
+	glGenBuffers(1, &elementBufferObject);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementBufferObject);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, elemetDataSize, elementData, GL_STATIC_DRAW);
 
 	return vertexArrayObject;
 }
@@ -102,25 +108,13 @@ void handleKeyEvent(GLFWwindow* window, int key, int scancode, int action, int m
 		{
 			moveRight++;
 		}
-		if (modifiers == GLFW_MOD_SHIFT && key == GLFW_KEY_UP)
+		if (modifiers != GLFW_MOD_ALT && key == GLFW_KEY_UP)
 		{
 			moveUp++;
 		}
-		if (modifiers == GLFW_MOD_SHIFT && key == GLFW_KEY_DOWN)
+		if (modifiers != GLFW_MOD_ALT && key == GLFW_KEY_DOWN)
 		{
 			moveUp--;
-		}
-		if (modifiers != GLFW_MOD_SHIFT && modifiers != GLFW_MOD_ALT && key == GLFW_KEY_UP)
-		{
-			scaleMultiplier += 0.1f;
-		}
-		if (modifiers != GLFW_MOD_SHIFT && modifiers != GLFW_MOD_ALT && key == GLFW_KEY_DOWN)
-		{
-			scaleMultiplier -= 0.1f;
-			if (scaleMultiplier <= 0.0f)
-			{
-				scaleMultiplier = 0.1f;
-			}
 		}
 		if (modifiers == GLFW_MOD_ALT && key == GLFW_KEY_LEFT)
 		{
@@ -169,6 +163,44 @@ void handleMouseEvent(GLFWwindow* window, int button, int action, int modifiers)
 	}
 }
 
+void handleMouseScroll(GLFWwindow* window, double offsetX, double offsetY)
+{
+	if (offsetY > 0.0)
+	{
+		scaleMultiplier += 0.1f;
+	}
+	else if (offsetY < 0.0)
+	{
+		scaleMultiplier -= 0.1f;
+		if (scaleMultiplier <= 0.0f)
+		{
+			scaleMultiplier = 0.1f;
+		}
+	}
+}
+
+void handleFrameBufferResize(GLFWwindow* window, int width, int height)
+{
+	glViewport(0, 0, width, height);
+}
+
+GLuint loadTexture(const char* path)
+{
+	int width;
+	int height;
+	int channels;
+	stbi_uc* textureData = stbi_load(path, &width, &height, &channels, 0);
+	GLuint texture;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, textureData);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	return texture;
+}
+
 int main ()
 {
 	//Read shaders from file
@@ -186,123 +218,81 @@ int main ()
 
 	glfwSetKeyCallback(window, handleKeyEvent);
 	glfwSetMouseButtonCallback(window, handleMouseEvent);
+	glfwSetScrollCallback(window, handleMouseScroll);
+
+	glfwSetFramebufferSizeCallback(window, handleFrameBufferResize);
 
 	GLuint program = createShaderProgram(vertexShaderSourceChar, fragmentShaderSourceChar);
-	GLuint uColor = glGetUniformLocation(program, "u_Color");
 	GLuint uTime = glGetUniformLocation(program, "u_Time");
-	GLuint uScale = glGetUniformLocation(program, "u_Scale");
+	GLuint uZoom = glGetUniformLocation(program, "u_Zoom");
+	GLuint uColour = glGetUniformLocation(program, "u_Colour");
 	GLuint uOffset = glGetUniformLocation(program, "u_Offset");
 	GLuint uMidPoint = glGetUniformLocation(program, "u_MidPoint");
-
-	//Program A
-	float vertexDataA[] =
-	{ 
-		-0.9f, 0.7f, 
-		-0.9f, 0.9f, 
-		-0.1f, 0.9f, 
-		-0.1f, 0.7f 
-	};
-	GLuint elementDataA[] = { 0, 1, 2, 0, 2, 3 };
-	GLuint triA = createVertexArrayBuffer(vertexDataA, sizeof(vertexDataA), elementDataA, sizeof(elementDataA));
-
-	//Program B
-	float vertexDataB[] = 
-	{ 
-		0.5f, 0.5f, 
-		0.5f, 0.9f, 
-		0.9f, 0.9f, 
-		0.9f, 0.5f 
-	};
-	GLuint elementDataB[] = { 0, 1, 2, 0, 2, 3 };
-	GLuint triB = createVertexArrayBuffer(vertexDataB, sizeof(vertexDataB), elementDataB, sizeof(elementDataB));
-
-	//Program C
-	float vertexDataC[] =
-	{ 
-		-0.9f, -0.4f, 
-		-0.9f, 0.2f, 
-		-0.7f, 0.2f, 
-		-0.7f, -0.4f, 
-		-0.7f, -0.2f, 
-		-0.5f, -0.2f, 
-		-0.5f, -0.4f 
-	};
-	GLuint elementDataC[] = { 0, 1, 2, 0, 2, 3, 3, 4, 5, 3, 5, 6 };
-	GLuint triC = createVertexArrayBuffer(vertexDataC, sizeof(vertexDataC), elementDataC, sizeof(elementDataC));
-
-	//Program D
-	float vertexDataD[] =
-	{ 
-		0.2f, -0.4f,
-		0.2f, 0.0f,
-		0.4f, 0.0f,
-		0.4f, -0.4f,
-		0.4f, -0.2f,
-		0.6f, -0.2f,
-		0.6f, -0.6f,
-		0.4f, -0.6f 
-	};
-	GLuint elementDataD[] = { 0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7 };
-	GLuint triD = createVertexArrayBuffer(vertexDataD, sizeof(vertexDataD), elementDataD, sizeof(elementDataD));
+	GLuint uSampler1 = glGetUniformLocation(program, "u_Sampler1");
+	GLuint uModel = glGetUniformLocation(program, "u_Model");
 
 	//Program E
 	float vertexDataE[] = 
-	{ 
-		-0.1f, 0.0f,
-		-0.3f, 0.0f,
-		-0.3f, 0.2f,
-		-0.1f, 0.2f,
-		-0.5f, 0.2f,
-		-0.5f, 0.4f,
-		0.1f, 0.4f,
-		0.1f, 0.2f
+	{
+		//Position		//Colour			//UV
+		0.5f, -0.5f,	1.0f, 0.0f, 0.0f,	1.0f, 1.0f,
+		-0.5f, -0.5f,	0.0f, 1.0f, 0.0f,	0.0f, 1.0f,
+		-0.5f, 0.5f,	0.0f, 0.0f, 1.0f,	0.0f, 0.0f,
+		0.5f, 0.5f,		0.5f, 0.0f, 0.0f,	1.0f, 0.0f
 	};
-	GLuint elementDataE[] = { 0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7 };
-	GLuint triE = createVertexArrayBuffer(vertexDataE, sizeof(vertexDataE), elementDataE, sizeof(elementDataE));
+	GLuint elementDataE[] = { 0, 1, 2, 0, 2, 3 };
+	GLuint programE = createVertexArrayBuffer(vertexDataE, sizeof(vertexDataE), elementDataE, sizeof(elementDataE));
 	
 	glUseProgram(program);
 
+	GLuint texture0 = loadTexture("Textures/texture.png");
+	glActiveTexture(GL_TEXTURE1);
+	GLuint texture1 = loadTexture("Textures/texture2.jpg");
+
 	float previousTime = 0;
+
+	glBindVertexArray(programE);
 
 	while (!glfwWindowShouldClose(window))
 	{
-		//Clear screen
+		//Clear screen with grey background
 		glClearColor(0.125f, 0.125f, 0.125f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		float time = glfwGetTime();
 		float deltaTime = time - previousTime;
 		previousTime = time;
-
-		glUniform2f(uMidPoint, -0.2f, 0.2f);
-		glUniform1f(uTime, deltaTime);
-		glUniform2f(uOffset, moveRight * 0.05f, moveUp * 0.05f);
-		glUniform1f(uScale, scaleMultiplier);
-
-		//glBindVertexArray(triA);
-		//glUniform4f(uColor, 0.0f, 1.0f, 1.0f, 1.0f);
-		//glUniform1f(uTime, time);
-		//glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-		//glBindVertexArray(triB);
-		//glUniform4f(uColor, 1.0f, 1.0f, 0.0f, 1.0f);
-		//glUniform1f(uTime, time);
-		//glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-		//glBindVertexArray(triC);
-		//glUniform4f(uColor, 1.0f, 0.5f, 0.0f, 1.0f);
-		//glUniform1f(uTime, time);
-		//glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
-
-		//glBindVertexArray(triD);
-		//glUniform4f(uColor, 0.0f, 1.0f, 0.0f, 1.0f);
-		//glUniform1f(uTime, time);
-		//glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
-
-		glBindVertexArray(triE);
-		glUniform4f(uColor, 1.0f, 0.0f, 1.0f, 1.0f);
 		glUniform1f(uTime, time);
-		glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
+
+		glUniform1i(uSampler1, 1);
+		glUniform2f(uMidPoint, 0.0f, 0.0f);
+		glUniform2f(uOffset, moveRight * 0.05f, moveUp * 0.05f);
+		glUniform1f(uZoom, scaleMultiplier);
+
+		int width;
+		int height;
+		glfwGetWindowSize(window, &width, &height);
+		float aspect = (float)width / height;
+
+		//(Translation, Rotation, Scale) = Model, View, Projection
+		glm::mat4 viewMatrix = glm::lookAt(glm::vec3(sin(time), 1.0f + sin(time * 1.7f) * 0.4f, cos(time)) * 2.0f, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		glm::mat4 projectionMatrix = glm::perspective(glm::radians(50.0f), aspect, 0.5f, 10.0f);
+
+		glm::mat4 translationMatrix = glm::translate(glm::identity<glm::mat4>(), glm::vec3(0.0f, -0.5f, 0.0f));
+		glm::mat4 scaleMatrix = glm::scale(glm::identity<glm::mat4>(), glm::vec3(1.5f));
+		glm::mat4 rotationMatrix = glm::rotate(glm::identity<glm::mat4>(), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+		glm::mat4 modelMatrix = projectionMatrix * viewMatrix * translationMatrix * rotationMatrix * scaleMatrix;
+		glUniformMatrix4fv(uModel, 1, false, glm::value_ptr(modelMatrix));
+
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+		translationMatrix = glm::translate(glm::identity<glm::mat4>(), glm::vec3(0.0f));
+		scaleMatrix = glm::scale(glm::identity<glm::mat4>(), glm::vec3(1.0f));
+		rotationMatrix = glm::rotate(glm::identity<glm::mat4>(), glm::radians(time * 90.0f * 0), glm::vec3(0.0f, 1.0f, 0.0f));
+		modelMatrix = projectionMatrix * viewMatrix * translationMatrix * rotationMatrix * scaleMatrix;
+		glUniformMatrix4fv(uModel, 1, false, glm::value_ptr(modelMatrix));
+
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();

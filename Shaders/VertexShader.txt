@@ -6,6 +6,7 @@ uniform vec2 u_MidPoint;
 uniform float u_Time;
 uniform float u_Zoom = 1.0f;
 uniform mat4 u_Model;
+uniform mat4 u_ViewProjection;
 uniform vec2 u_Offset;
 out vec2 f_Position;
 out vec3 f_Colour;
@@ -14,7 +15,7 @@ void main()
 {
     vec2 correction = (1.0f - u_Zoom) * (u_MidPoint - a_Position);
     correction = a_Position + correction + u_Offset;
-    gl_Position = u_Model * vec4(correction, 0.0f, 1.0f);
+    gl_Position = u_ViewProjection * u_Model * vec4(correction, 0.0f, 1.0f);
     f_Position = a_Position;
     f_Colour = a_Colour;
     f_TextCoord = a_TextCoord;

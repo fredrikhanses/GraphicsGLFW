@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "TextReader.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #define GLEW_STATIC
@@ -10,78 +9,17 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include "mesh.h"
+#include "globals.h"
+#include "shader.h"
 
 int resolutionX = 1000;
 int resolutionY = 1000;
 int moveRight = 0;
 int moveUp = 0;
 float scaleMultiplier = 1.0f;
-bool mouseCamera = false;
 
-GLuint createShader(const char* source, GLenum type)
-{
-	GLuint shader = glCreateShader(type);
-	glShaderSource(shader, 1, &source, NULL);
-	glCompileShader(shader);
-
-	static char LOG_BUFFER[1024];
-	glGetShaderInfoLog(shader, 1024, NULL, LOG_BUFFER);
-	if (type == 35633)
-	{
-		printf("-- VERTEX SHADER COMPILE --\n");
-	}
-	else if(type == 35632)
-	{
-		printf("-- FRAGMENT SHADER COMPILE --\n");
-	}
-	printf("Source: \n%s", source);
-	printf(LOG_BUFFER);
-
-	return shader;
-}
-
-GLuint createShaderProgram(const char* vertexSource, const char* fragmentSource)
-{
-	GLuint vertex_shader = createShader(vertexSource, GL_VERTEX_SHADER);
-	GLuint fragment_shader = createShader(fragmentSource, GL_FRAGMENT_SHADER);
-
-	GLuint program = glCreateProgram();
-	glAttachShader(program, vertex_shader);
-	glAttachShader(program, fragment_shader);
-	glLinkProgram(program);
-
-	return program;
-}
-
-GLuint createVertexArrayBuffer(float* vertexData, int vertexDataSize, GLuint* elementData, int elemetDataSize)
-{
-	//Vertex Array Object
-	GLuint vertexArrayObject;
-	glGenVertexArrays(1, &vertexArrayObject);
-	glBindVertexArray(vertexArrayObject);
-
-	//Vertex Buffer Object
-	GLuint vertexBufferObject;
-	glGenBuffers(1, &vertexBufferObject);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject);
-	glBufferData(GL_ARRAY_BUFFER, vertexDataSize, vertexData, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 2, GL_FLOAT, false, 7 * sizeof(float), 0);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, false, 7 * sizeof(float), (void*)(2 * sizeof(float)));
-	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(2, 2, GL_FLOAT, false, 7 * sizeof(float), (void*)(5 * sizeof(float)));
-
-	//Element Buffer Object
-	GLuint elementBufferObject;
-	glGenBuffers(1, &elementBufferObject);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementBufferObject);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, elemetDataSize, elementData, GL_STATIC_DRAW);
-
-	return vertexArrayObject;
-}
-
-void handleKeyEvent(GLFWwindow* window, int key, int scancode, int action, int modifiers)
+void HandleKeyEvent(GLFWwindow* window, int key, int scancode, int action, int modifiers)
 {
 	int unitsToMove = 10;
 	if (action != GLFW_RELEASE)
@@ -148,7 +86,7 @@ void handleKeyEvent(GLFWwindow* window, int key, int scancode, int action, int m
 	}
 }
 
-void handleMouseEvent(GLFWwindow* window, int button, int action, int modifiers)
+void HandleMouseEvent(GLFWwindow* window, int button, int action, int modifiers)
 {
 	if (button == GLFW_MOUSE_BUTTON_LEFT)
 	{
@@ -163,18 +101,23 @@ void handleMouseEvent(GLFWwindow* window, int button, int action, int modifiers)
 		if (action == GLFW_PRESS)
 		{
 			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-			mouseCamera = true;
+			cameraControl = true;
 		}
 		else
 		{
 			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-			mouseCamera = false;
+			cameraControl = false;
 		}
 	}
 
 }
 
-void handleMouseScroll(GLFWwindow* window, double offsetX, double offsetY)
+void HandleMousePosition(GLFWwindow* window, double mouseX, double mouseY)
+{
+	mousePosition = glm::vec2(mouseX, mouseY);
+}
+
+void HandleMouseScroll(GLFWwindow* window, double offsetX, double offsetY)
 {
 	if (offsetY > 0.0)
 	{
@@ -190,12 +133,13 @@ void handleMouseScroll(GLFWwindow* window, double offsetX, double offsetY)
 	}
 }
 
-void handleFrameBufferResize(GLFWwindow* window, int width, int height)
+void HandleFrameBufferResize(GLFWwindow* window, int width, int height)
 {
 	glViewport(0, 0, width, height);
+	camera.aspect = width / (float)height;
 }
 
-GLuint loadTexture(const char* path)
+GLuint LoadTexture(const char* path)
 {
 	int width;
 	int height;
@@ -214,65 +158,43 @@ GLuint loadTexture(const char* path)
 
 int main ()
 {
-	//Read shaders from file
-	TextReader textReader;
-	std::string vertexShaderSource = textReader.ReadText("Shaders/VertexShader.txt");
-	char* vertexShaderSourceChar = &vertexShaderSource[0];
-	std::string fragmentShaderSource = textReader.ReadText("Shaders/FragmentShader.txt");
-	char* fragmentShaderSourceChar = &fragmentShaderSource[0];
-
 	glfwInit();
-	GLFWwindow* window = glfwCreateWindow(resolutionX, resolutionY, "GraphicsGLFW", NULL, NULL);
+	window = glfwCreateWindow(resolutionX, resolutionY, "GraphicsGLFW", NULL, NULL);
 	glfwMakeContextCurrent(window);
 
 	glewInit();
 
-	glfwSetKeyCallback(window, handleKeyEvent);
-	glfwSetMouseButtonCallback(window, handleMouseEvent);
-	glfwSetScrollCallback(window, handleMouseScroll);
+	glfwSetKeyCallback(window, HandleKeyEvent);
+	glfwSetMouseButtonCallback(window, HandleMouseEvent);
+	glfwSetScrollCallback(window, HandleMouseScroll);
+	glfwSetCursorPosCallback(window, HandleMousePosition);
 
-	glfwSetFramebufferSizeCallback(window, handleFrameBufferResize);
+	glfwSetFramebufferSizeCallback(window, HandleFrameBufferResize);
 
 	glEnable(GL_DEPTH_TEST);
 
-	GLuint program = createShaderProgram(vertexShaderSourceChar, fragmentShaderSourceChar);
-	GLuint uTime = glGetUniformLocation(program, "u_Time");
-	GLuint uZoom = glGetUniformLocation(program, "u_Zoom");
-	GLuint uColour = glGetUniformLocation(program, "u_Colour");
-	GLuint uOffset = glGetUniformLocation(program, "u_Offset");
-	GLuint uMidPoint = glGetUniformLocation(program, "u_MidPoint");
-	GLuint uSampler1 = glGetUniformLocation(program, "u_Sampler1");
-	GLuint uModel = glGetUniformLocation(program, "u_Model");
-	GLuint uViewProjection = glGetUniformLocation(program, "u_ViewProjection");
+	//Load shaders and create program
+	Material material = LoadMaterial("Shaders/VertexShader.txt", "Shaders/FragmentShader.txt");
+	MaterialAddTexture(&material, LoadTexture("Assets/texture.png"));
+	MaterialUse(material);
 
-	//Program E
-	float vertexDataE[] = 
-	{
-		//Position		//Colour			//UV
-		0.5f, -0.5f,	1.0f, 0.0f, 0.0f,	1.0f, 1.0f,
-		-0.5f, -0.5f,	0.0f, 1.0f, 0.0f,	0.0f, 1.0f,
-		-0.5f, 0.5f,	0.0f, 0.0f, 1.0f,	0.0f, 0.0f,
-		0.5f, 0.5f,		0.5f, 0.0f, 0.0f,	1.0f, 0.0f
-	};
-	GLuint elementDataE[] = { 0, 1, 2, 0, 2, 3 };
-	GLuint programE = createVertexArrayBuffer(vertexDataE, sizeof(vertexDataE), elementDataE, sizeof(elementDataE));
-	
-	glUseProgram(program);
+	Material material2 = LoadMaterial("Shaders/VertexShader.txt", "Shaders/FragmentShader.txt");
+	MaterialAddTexture(&material2, LoadTexture("Assets/texture2.jpg"));
 
-	GLuint texture0 = loadTexture("Textures/texture.png");
-	glActiveTexture(GL_TEXTURE1);
-	GLuint texture1 = loadTexture("Textures/texture2.jpg");
+	//Mesh load
+	Mesh cube = MeshLoad("Assets/Cube.obj");
+	Mesh sphere = MeshLoad("Assets/SmoothSphere.obj");
+	Mesh monkey = MeshLoad("Assets/Monkey.obj");
 
+	//Aspect
+	int width;
+	int height;
+	glfwGetFramebufferSize(window, &width, &height);
+	camera.aspect = width / (float)height;
+
+	//Delta time & mouse delta
 	float previousTime = (float)glfwGetTime();
-
-	double lastMouseX;
-	double lastMouseY;
-	glfwGetCursorPos(window, &lastMouseX, &lastMouseY);
-
-	glBindVertexArray(programE);
-
-	glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, 3.0f);
-	glm::vec3 cameraRotation = glm::vec3();
+	glm::vec2 lastMousePosition = mousePosition;
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -280,91 +202,36 @@ int main ()
 		glClearColor(0.125f, 0.125f, 0.125f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+		//Update Camera
+		CameraUpdate();
+
+		//Delta time
 		float time = (float)glfwGetTime();
-		float deltaTime = time - previousTime;
+		deltaTime = time - previousTime;
 		previousTime = time;
 
-		double mouseX;
-		double mouseY;
-		glfwGetCursorPos(window, &mouseX, &mouseY);
-		float deltaMouseX = lastMouseX - mouseX;
-		float deltaMouseY = lastMouseY - mouseY;
-		lastMouseX = mouseX;
-		lastMouseY = mouseY;
+		MaterialSet("u_Time", time);
 
-		glUniform1f(uTime, time);
-		glUniform1i(uSampler1, 1);
-		glUniform2f(uMidPoint, 0.0f, 0.0f);
-		glUniform2f(uOffset, moveRight * 0.05f, moveUp * 0.05f);
-		glUniform1f(uZoom, scaleMultiplier);
+		//Mouse delta mouse movement
+		mouseDelta = mousePosition - lastMousePosition;
+		lastMousePosition = mousePosition;
+		
+		//Set render data
+		RenderData renderData;
+		renderData.viewProjection = CameraMatrix();
+		renderData.material = &material;
 
-		//Rotate Camera
-		if (mouseCamera)
-		{
-			glm::vec3 cameraRot = glm::vec3(deltaMouseY, deltaMouseX, 0.0f);
-			cameraRotation += cameraRot * glm::radians(0.1f);
-		}
+		//Draw cube
+		MeshDraw(cube, renderData);
 
-		glm::quat cameraQuat = angleAxis(cameraRotation.y, glm::vec3(0.0f, 1.0f, 0.0f)) * angleAxis(cameraRotation.x, glm::vec3(1.0f, 0.0f, 0.0f)) * angleAxis(cameraRotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
-		glm::vec3 cameraForward = cameraQuat * glm::vec3(0.0f, 0.0f, -1.0f);
-		glm::vec3 cameraRight = cameraQuat * glm::vec3(1.0f, 0.0f, 0.0f);
+		//Draw sphere
+		renderData.model = glm::translate(glm::identity<glm::mat4>(), glm::vec3(2.5f, 0.0f, 0.0f));
+		MeshDraw(sphere, renderData);
 
-		//Move Camera
-		glm::vec3 cameraMove = glm::vec3();
-		if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		{
-			cameraMove -= cameraRight;
-		}
-		if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		{
-			cameraMove += cameraRight;
-		}
-		if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		{
-			cameraMove -= cameraForward;
-		}
-		if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		{
-			cameraMove += cameraForward;
-		}
-		if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
-		{
-			cameraMove.y -= 1.0f;
-		}
-		if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-		{
-			cameraMove.y += 1.0f;
-		}
-
-		cameraPosition += cameraMove * deltaTime;
-
-		int width;
-		int height;
-		glfwGetWindowSize(window, &width, &height);
-		float aspect = (float)width / height;
-
-		//Projection, View
-		glm::mat4 viewMatrix = glm::lookAt(cameraPosition, cameraPosition + cameraForward, glm::vec3(0.0f, 1.0f, 0.0f));
-		glm::mat4 projectionMatrix = glm::perspective(glm::radians(50.0f), aspect, 0.5f, 10.0f);
-		glm::mat4 viewProjectionMatrix = projectionMatrix * viewMatrix;
-		glUniformMatrix4fv(uViewProjection, 1, false, glm::value_ptr(viewProjectionMatrix));
-
-		//(Translation, Rotation, Scale) = Model
-		glm::mat4 translationMatrix = glm::translate(glm::identity<glm::mat4>(), glm::vec3(0.0f, -0.5f, 0.0f));
-		glm::mat4 scaleMatrix = glm::scale(glm::identity<glm::mat4>(), glm::vec3(1.5f));
-		glm::mat4 rotationMatrix = glm::rotate(glm::identity<glm::mat4>(), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-		glm::mat4 modelMatrix = translationMatrix * rotationMatrix * scaleMatrix;
-		glUniformMatrix4fv(uModel, 1, false, glm::value_ptr(modelMatrix));
-
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-		translationMatrix = glm::translate(glm::identity<glm::mat4>(), glm::vec3(0.0f));
-		scaleMatrix = glm::scale(glm::identity<glm::mat4>(), glm::vec3(1.0f));
-		rotationMatrix = glm::rotate(glm::identity<glm::mat4>(), glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-		modelMatrix = translationMatrix * rotationMatrix * scaleMatrix;
-		glUniformMatrix4fv(uModel, 1, false, glm::value_ptr(modelMatrix));
-
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		//Draw monkey
+		renderData.model = glm::translate(glm::identity<glm::mat4>(), glm::vec3(-2.5f, 0.0f, 0.0f));
+		renderData.material = &material2;
+		MeshDraw(monkey, renderData);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();

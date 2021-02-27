@@ -12,6 +12,6 @@ void main()
     vec4 colour_a = texture(u_Sampler0, f_TextCoord);
     vec4 colour_b = texture(u_Sampler1, f_TextCoord);
     //o_Colour = mix(colour_a, colour_b, sin((u_Time + f_Position.x + f_Position.y) * 2) * 0.5f + 0.5f);
-    o_Colour = vec4(f_Normal, 1.0);
-    o_Colour = texture(u_Sampler0, f_TextCoord);
+    //o_Colour = vec4(f_Normal, 1.0);
+    //o_Colour = texture(u_Sampler0, f_TextCoord);
 }

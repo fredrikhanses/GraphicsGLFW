@@ -17,4 +17,5 @@ void MaterialAddTexture(Material* material, GLuint texture);
 // Helper functions
 void MaterialUse(Material material);
 void MaterialSet(const char* name, float value);
+void MaterialSet(const char* name, const glm::vec3& value);
 void MaterialSet(const char* name, const glm::mat4& value);

@@ -1,12 +1,13 @@
 #include "mesh.h"
 #include "wavefront.h"
+#include <gl/glew.h>
 #include "shader.h"
 
 struct Vertex
 {
 	glm::vec3 position;
-	glm::vec3 normal;
 	glm::vec2 textureCoordinate;
+	glm::vec3 normal;
 };
 
 Mesh MeshLoad(const char* path)
@@ -23,7 +24,7 @@ Mesh MeshLoad(const char* path)
 	for (int trangleIndex = 0; trangleIndex < object->num_triangles; trangleIndex++)
 	{
 		Wavefront_Triangle triangle = object->triangles[trangleIndex];
-		for (int vertexIndex = 0; vertexIndex < 3; vertexIndex++)
+		for (int vertexIndex = 0; vertexIndex < 3; ++vertexIndex)
 		{
 			Wavefront_Vertex& vertex = triangle.vertices[vertexIndex];
 			Vertex newVertex;
@@ -65,6 +66,9 @@ void MeshDraw(const Mesh& mesh, const RenderData& data)
 	//Set matrices
 	MaterialSet("u_Model", data.model);
 	MaterialSet("u_ViewProjection", data.viewProjection);
+
+	//Set lights
+	MaterialSet("u_DirectionalLight", data.directionalLight);
 	
 	glDrawArrays(GL_TRIANGLES, 0, mesh.drawCount);
 }

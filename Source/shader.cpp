@@ -43,8 +43,8 @@ GLuint LoadShaderProgram(const char* vertexPath, const char* fragmentPath)
 	glAttachShader(program, fragmentShader);
 	glLinkProgram(program);
 
-	static char BUFFER[1024];
-	glGetProgramInfoLog(program, 1024, NULL, BUFFER);
+	static char BUFFER[2048];
+	glGetProgramInfoLog(program, 2048, NULL, BUFFER);
 	printf(BUFFER);
 
 	return program;
@@ -83,6 +83,12 @@ void MaterialSet(const char* name, float value)
 {
 	GLuint location = glGetUniformLocation(currentProgram, name);
 	glUniform1f(location, value);
+}
+
+void MaterialSet(const char* name, const glm::vec3& value)
+{
+	GLuint location = glGetUniformLocation(currentProgram, name);
+	glUniform3fv(location, 1, value_ptr(value));
 }
 
 void MaterialSet(const char* name, const glm::mat4& value)

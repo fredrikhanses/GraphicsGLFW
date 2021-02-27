@@ -6,6 +6,7 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <GL/GL.h>
+#include <math.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -13,8 +14,8 @@
 #include "globals.h"
 #include "shader.h"
 
-int resolutionX = 1000;
-int resolutionY = 1000;
+int resolutionX = 1280;
+int resolutionY = 720;
 int moveRight = 0;
 int moveUp = 0;
 float scaleMultiplier = 1.0f;
@@ -161,6 +162,7 @@ int main ()
 	glfwInit();
 	window = glfwCreateWindow(resolutionX, resolutionY, "GraphicsGLFW", NULL, NULL);
 	glfwMakeContextCurrent(window);
+	glfwSwapInterval(0);
 
 	glewInit();
 
@@ -178,12 +180,12 @@ int main ()
 	MaterialAddTexture(&material, LoadTexture("Assets/texture.png"));
 	MaterialUse(material);
 
-	Material material2 = LoadMaterial("Shaders/VertexShader.txt", "Shaders/FragmentShader.txt");
+	Material material2 = LoadMaterial("Shaders/LightingVertexShader.txt", "Shaders/LightingFragmentShader.txt");
 	MaterialAddTexture(&material2, LoadTexture("Assets/texture2.jpg"));
 
 	//Mesh load
 	Mesh cube = MeshLoad("Assets/Cube.obj");
-	Mesh sphere = MeshLoad("Assets/SmoothSphere.obj");
+	Mesh sphere = MeshLoad("Assets/Sphere.obj");
 	Mesh monkey = MeshLoad("Assets/Monkey.obj");
 
 	//Aspect
@@ -219,7 +221,9 @@ int main ()
 		//Set render data
 		RenderData renderData;
 		renderData.viewProjection = CameraMatrix();
-		renderData.material = &material;
+		renderData.material = &material2;
+		renderData.directionalLight = normalize(glm::vec3(sin(time), -1.0f, cos(time)));
+		renderData.directionalLight = normalize(glm::vec3(-1.0f, -1.0f, -1.0f));
 
 		//Draw cube
 		MeshDraw(cube, renderData);
@@ -229,7 +233,7 @@ int main ()
 		MeshDraw(sphere, renderData);
 
 		//Draw monkey
-		renderData.model = glm::translate(glm::identity<glm::mat4>(), glm::vec3(-2.5f, 0.0f, 0.0f));
+		renderData.model = glm::translate(glm::identity<glm::mat4>(), glm::vec3(-2.5f, 0.0f, 0.0f)) * glm::rotate(glm::mat4(1.0f), time, glm::vec3(0.0f, 1.0f, 0.0f));
 		renderData.material = &material2;
 		MeshDraw(monkey, renderData);
 

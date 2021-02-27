@@ -10,6 +10,9 @@ struct RenderData
 	glm::mat4 model = glm::identity<glm::mat4>();
 
 	Material* material = nullptr;
+
+	//Lights
+	glm::vec3 directionalLight;
 };
 
 struct Mesh

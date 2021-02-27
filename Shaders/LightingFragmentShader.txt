@@ -1,0 +1,11 @@
+#version 330 core
+in vec3 f_Normal;
+uniform vec3 u_DirectionalLight;
+out vec4 o_Colour;
+void main()
+{
+    //Diffuse Lighting
+    float diffuse = dot(f_Normal, -u_DirectionalLight);
+    //o_Colour = vec4(diffuse, diffuse, diffuse, 1.0);
+    o_Colour = vec4(f_Normal, 1.0f);
+}
